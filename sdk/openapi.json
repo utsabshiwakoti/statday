@@ -1,0 +1,1427 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StatDay API",
+    "summary": "Canadian statutory holidays and business days.",
+    "description": "\nStatutory and public holidays for every Canadian province and territory, plus federally regulated\nworkplaces, from 2023 to 2050. Also: observed days off when a holiday lands on a weekend,\nand business-day maths (count them, or add them to a date).\n\n**Authentication.** Optional. Send an API key in the `X-API-Key` header for a higher rate limit.\nGet one free in the [developer portal](/portal).\n\n**Rate limits.** Every response has `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`\nheaders. Going over returns `429` with `Retry-After`.\n\n**Caching.** Responses carry an `ETag`. Send it back in `If-None-Match` to get `304 Not Modified`\nwhen nothing changed.\n\n**Errors.** Always `application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)).\nThe `type` field links to an explanation in the [guide](/guide).\n",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/regions": {
+      "get": {
+        "tags": [
+          "regions"
+        ],
+        "summary": "List regions",
+        "description": "The federal jurisdiction (`CA`, for federally regulated workplaces) plus every province and territory.",
+        "operationId": "list_regions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionList"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: your `If-None-Match` ETag is still current."
+          },
+          "401": {
+            "description": "The API key is invalid or revoked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A parameter is invalid or out of range.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit reached; see `Retry-After`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/v1/regions/{region}/holidays": {
+      "get": {
+        "tags": [
+          "regions"
+        ],
+        "summary": "Holidays in a region",
+        "description": "Every holiday in one region for a year, in date order, with the observed day off for weekend dates.",
+        "operationId": "region_holidays",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/RegionCode"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to the current year.",
+              "examples": [
+                2026
+              ],
+              "title": "Year"
+            },
+            "description": "Defaults to the current year."
+          },
+          {
+            "name": "include_optional",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include holidays that aren't statutory.",
+              "default": true,
+              "title": "Include Optional"
+            },
+            "description": "Include holidays that aren't statutory."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionHolidays"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: your `If-None-Match` ETag is still current."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The API key is invalid or revoked."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A parameter is invalid or out of range."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Rate limit reached; see `Retry-After`."
+          }
+        }
+      }
+    },
+    "/v1/regions/{region}/holidays/next": {
+      "get": {
+        "tags": [
+          "regions"
+        ],
+        "summary": "Next holidays in a region",
+        "description": "The next holidays strictly after a date. Statutory only unless `include_optional=true`.",
+        "operationId": "next_holidays",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/RegionCode"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to today in the region.",
+              "title": "After"
+            },
+            "description": "Defaults to today in the region."
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10,
+              "minimum": 1,
+              "default": 1,
+              "title": "Count"
+            }
+          },
+          {
+            "name": "include_optional",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include holidays that aren't statutory.",
+              "default": false,
+              "title": "Include Optional"
+            },
+            "description": "Include holidays that aren't statutory."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NextHolidays"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: your `If-None-Match` ETag is still current."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The API key is invalid or revoked."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A parameter is invalid or out of range."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Rate limit reached; see `Retry-After`."
+          }
+        }
+      }
+    },
+    "/v1/regions/{region}/dates/{day}": {
+      "get": {
+        "tags": [
+          "business days"
+        ],
+        "summary": "Check a date",
+        "description": "Is this date a business day in the region, and is it (or is it observed as) a holiday?",
+        "operationId": "check_date",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/RegionCode"
+            }
+          },
+          {
+            "name": "day",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Day"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DateInfo"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: your `If-None-Match` ETag is still current."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The API key is invalid or revoked."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A parameter is invalid or out of range."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Rate limit reached; see `Retry-After`."
+          }
+        }
+      }
+    },
+    "/v1/regions/{region}/business-days": {
+      "get": {
+        "tags": [
+          "business days"
+        ],
+        "summary": "Count business days",
+        "description": "Business days from `start` to `end`, both inclusive. Weekends and statutory days off don't count.",
+        "operationId": "count_business_days",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/RegionCode"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDayCount"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: your `If-None-Match` ETag is still current."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The API key is invalid or revoked."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A parameter is invalid or out of range."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Rate limit reached; see `Retry-After`."
+          }
+        }
+      }
+    },
+    "/v1/regions/{region}/business-days/add": {
+      "get": {
+        "tags": [
+          "business days"
+        ],
+        "summary": "Add business days",
+        "description": "The date `days` business days after `start`, e.g. a deadline of \"10 business days from today\".",
+        "operationId": "add_business_days",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "region",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/RegionCode"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Start"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": -1000,
+              "description": "Negative to count backwards.",
+              "title": "Days"
+            },
+            "description": "Negative to count backwards."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDayAdd"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: your `If-None-Match` ETag is still current."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The API key is invalid or revoked."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A parameter is invalid or out of range."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Rate limit reached; see `Retry-After`."
+          }
+        }
+      }
+    },
+    "/v1/holidays": {
+      "get": {
+        "tags": [
+          "holidays"
+        ],
+        "summary": "Search holidays",
+        "description": "Holidays across Canada between two dates, with the regions observing each one.\n\nFilters narrow both the holidays and their `regions` list (e.g. `region=ON&type=statutory`).\nResults are paginated: see `pagination` in the body, or the `Link` and `X-Total-Count` headers.",
+        "operationId": "list_holidays",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Shorthand for `start` and `end` covering one year.",
+              "title": "Year"
+            },
+            "description": "Shorthand for `start` and `end` covering one year."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to January 1 of the current year.",
+              "title": "Start"
+            },
+            "description": "Defaults to January 1 of the current year."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to December 31 of `start`'s year.",
+              "title": "End"
+            },
+            "description": "Defaults to December 31 of `start`'s year."
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RegionCode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Region"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/HolidayType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search English and French names.",
+              "title": "Q"
+            },
+            "description": "Search English and French names."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Per Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayPage"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: your `If-None-Match` ETag is still current."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The API key is invalid or revoked."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A parameter is invalid or out of range."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Rate limit reached; see `Retry-After`."
+          }
+        }
+      }
+    },
+    "/v1/holidays/{holiday_id}": {
+      "get": {
+        "tags": [
+          "holidays"
+        ],
+        "summary": "Get a holiday",
+        "description": "One holiday in a given year: its date, the rule behind it, and how each region observes it.",
+        "operationId": "get_holiday",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "holiday_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Holiday Id"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults to the current year.",
+              "examples": [
+                2026
+              ],
+              "title": "Year"
+            },
+            "description": "Defaults to the current year."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Holiday"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified: your `If-None-Match` ETag is still current."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The API key is invalid or revoked."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A parameter is invalid or out of range."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Rate limit reached; see `Retry-After`."
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No holiday with this id."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BusinessDayAdd": {
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "result": {
+            "type": "string",
+            "format": "date",
+            "title": "Result"
+          },
+          "days_off": {
+            "items": {
+              "$ref": "#/components/schemas/HolidayOccurrence"
+            },
+            "type": "array",
+            "title": "Days Off",
+            "description": "Statutory holidays skipped on the way."
+          }
+        },
+        "type": "object",
+        "required": [
+          "region",
+          "start",
+          "days",
+          "result",
+          "days_off"
+        ],
+        "title": "BusinessDayAdd"
+      },
+      "BusinessDayCount": {
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "calendar_days": {
+            "type": "integer",
+            "title": "Calendar Days"
+          },
+          "business_days": {
+            "type": "integer",
+            "title": "Business Days"
+          },
+          "days_off": {
+            "items": {
+              "$ref": "#/components/schemas/HolidayOccurrence"
+            },
+            "type": "array",
+            "title": "Days Off",
+            "description": "Statutory holidays observed on weekdays in the range."
+          }
+        },
+        "type": "object",
+        "required": [
+          "region",
+          "start",
+          "end",
+          "calendar_days",
+          "business_days",
+          "days_off"
+        ],
+        "title": "BusinessDayCount"
+      },
+      "DateInfo": {
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "weekday": {
+            "type": "string",
+            "title": "Weekday"
+          },
+          "is_weekend": {
+            "type": "boolean",
+            "title": "Is Weekend"
+          },
+          "is_business_day": {
+            "type": "boolean",
+            "title": "Is Business Day"
+          },
+          "holidays": {
+            "items": {
+              "$ref": "#/components/schemas/HolidayOccurrence"
+            },
+            "type": "array",
+            "title": "Holidays",
+            "description": "Holidays on this date, or observed on it after a weekend shift."
+          }
+        },
+        "type": "object",
+        "required": [
+          "region",
+          "date",
+          "weekday",
+          "is_weekend",
+          "is_business_day",
+          "holidays"
+        ],
+        "title": "DateInfo"
+      },
+      "Holiday": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "examples": [
+              "canada-day"
+            ]
+          },
+          "name_en": {
+            "type": "string",
+            "title": "Name En"
+          },
+          "name_fr": {
+            "type": "string",
+            "title": "Name Fr"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "weekday": {
+            "type": "string",
+            "title": "Weekday"
+          },
+          "rule": {
+            "type": "string",
+            "title": "Rule",
+            "description": "How the date is worked out each year.",
+            "examples": [
+              "July 1"
+            ]
+          },
+          "regions": {
+            "items": {
+              "$ref": "#/components/schemas/Observance"
+            },
+            "type": "array",
+            "title": "Regions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name_en",
+          "name_fr",
+          "date",
+          "weekday",
+          "rule",
+          "regions"
+        ],
+        "title": "Holiday",
+        "description": "A holiday in one year, with every region that observes it."
+      },
+      "HolidayOccurrence": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "examples": [
+              "nova-scotia-heritage-day"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name used in this region.",
+            "examples": [
+              "Nova Scotia Heritage Day"
+            ]
+          },
+          "name_en": {
+            "type": "string",
+            "title": "Name En"
+          },
+          "name_fr": {
+            "type": "string",
+            "title": "Name Fr"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "observed_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Observed Date",
+            "description": "The day off when the holiday falls on a weekend (otherwise `date`)."
+          },
+          "weekday": {
+            "type": "string",
+            "title": "Weekday",
+            "examples": [
+              "Monday"
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/HolidayType",
+            "description": "`statutory`: paid holiday under the region's employment law. `optional`: widely observed but not guaranteed."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "name_en",
+          "name_fr",
+          "date",
+          "observed_date",
+          "weekday",
+          "type"
+        ],
+        "title": "HolidayOccurrence",
+        "description": "A holiday in one region."
+      },
+      "HolidayPage": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Holiday"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "title": "HolidayPage"
+      },
+      "HolidayType": {
+        "type": "string",
+        "enum": [
+          "statutory",
+          "optional"
+        ],
+        "title": "HolidayType"
+      },
+      "NextHolidays": {
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "after": {
+            "type": "string",
+            "format": "date",
+            "title": "After"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/HolidayOccurrence"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "region",
+          "after",
+          "data"
+        ],
+        "title": "NextHolidays"
+      },
+      "Observance": {
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "examples": [
+              "ON"
+            ]
+          },
+          "type": {
+            "$ref": "#/components/schemas/HolidayType"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "observed_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Observed Date"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "region",
+          "type",
+          "name",
+          "observed_date"
+        ],
+        "title": "Observance",
+        "description": "How one region observes a holiday."
+      },
+      "Pagination": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "per_page": {
+            "type": "integer",
+            "title": "Per Page"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "page",
+          "per_page",
+          "total",
+          "pages"
+        ],
+        "title": "Pagination"
+      },
+      "ProblemDetail": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "examples": [
+              "/guide#out-of-range"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "examples": [
+              "Out of range"
+            ]
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "examples": [
+              422
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "examples": [
+              "Years 2023 to 2050 are supported; got 1999."
+            ]
+          },
+          "instance": {
+            "type": "string",
+            "title": "Instance",
+            "examples": [
+              "/v1/regions/NS/holidays"
+            ]
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errors",
+            "description": "Per-parameter messages, for `invalid-parameters`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance"
+        ],
+        "title": "ProblemDetail",
+        "description": "RFC 9457 problem details. Every error response has this shape."
+      },
+      "Region": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "examples": [
+              "NS"
+            ]
+          },
+          "name_en": {
+            "type": "string",
+            "title": "Name En",
+            "examples": [
+              "Nova Scotia"
+            ]
+          },
+          "name_fr": {
+            "type": "string",
+            "title": "Name Fr",
+            "examples": [
+              "Nouvelle-Écosse"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "federal",
+              "province",
+              "territory"
+            ],
+            "title": "Type"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "description": "Used to work out 'today' in the region.",
+            "examples": [
+              "America/Halifax"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name_en",
+          "name_fr",
+          "type",
+          "timezone"
+        ],
+        "title": "Region"
+      },
+      "RegionCode": {
+        "type": "string",
+        "enum": [
+          "CA",
+          "AB",
+          "BC",
+          "MB",
+          "NB",
+          "NL",
+          "NS",
+          "ON",
+          "PE",
+          "QC",
+          "SK",
+          "NT",
+          "NU",
+          "YT"
+        ],
+        "title": "RegionCode"
+      },
+      "RegionHolidays": {
+        "properties": {
+          "region": {
+            "$ref": "#/components/schemas/Region"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/HolidayOccurrence"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "region",
+          "year",
+          "data"
+        ],
+        "title": "RegionHolidays"
+      },
+      "RegionList": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Region"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "RegionList"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "description": "Optional. Without a key you get 100 requests per hour per IP address; with one, 1000. Create keys in the developer portal.",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "regions",
+      "description": "Holidays for one province, territory or the federal jurisdiction."
+    },
+    {
+      "name": "holidays",
+      "description": "Holidays across the country, with how each region observes them."
+    },
+    {
+      "name": "business days",
+      "description": "Working-day checks and date maths that skip weekends and holidays."
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# openapi-python-client settings for the generated SDK.
+project_name_override: statday-client
+package_name_override: statday_client
