@@ -4,6 +4,8 @@ A public REST API for Canadian statutory holidays. It covers every province and 
 
 It's built the way a public API should be: versioned URLs, optional self-serve API keys, rate-limit headers, ETag caching, paginated search, one error format everywhere, interactive docs, and a typed Python SDK generated from the OpenAPI spec.
 
+**Live:** https://statday.onrender.com (try the playground, or open the [API reference](https://statday.onrender.com/docs)). It runs on Render's free tier, so the first request after it has been idle can take about a minute.
+
 ![Landing page](docs/landing.png)
 
 | Live playground | Developer portal |
@@ -13,7 +15,7 @@ It's built the way a public API should be: versioned URLs, optional self-serve A
 ## Using it
 
 ```bash
-curl https://<host>/v1/regions/NS/holidays/next
+curl https://statday.onrender.com/v1/regions/NS/holidays/next
 ```
 
 ```json
